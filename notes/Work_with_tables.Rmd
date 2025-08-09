@@ -1,0 +1,34 @@
+---
+title: "Work_with_table.Rmd"
+author: "Lev"
+date: "2025-08-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library("gtsummary")
+library("tidyverse")
+library("medicaldata")
+library("openai")
+
+devtools::load_all()
+
+```
+
+# Results
+
+bla-bla-bla 
+
+```{r}
+
+df_test <- medicaldata::opt
+
+tmp <- interpret_table_v2(table_input = df_test, by = "Group",
+                   context = "For a research paper", language = "en",
+                   verbosity = "moderate", instructions = "",
+                   varriabes_for_stats = c("Age", "Black"),
+                   model = "gpt-4o", formality = 0.2, ai_key = "Evgeny")
+
+cat(tmp)
+
+```
