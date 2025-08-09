@@ -9,6 +9,7 @@ output: html_document
 library("gtsummary")
 library("tidyverse")
 library("medicaldata")
+library("openai")
 ```
 Let us read the dataset and visualize it.
 ```{r}
@@ -17,4 +18,111 @@ class(dataset1)
 dataset1 %>%
   as_tibble() %>%
   tbl_summary(include = c(Age, Black, White, "V5..S7"))
+
+```
+
+
+Chunk of working with Chatgpt - from Dilayara's results - working with cardio table
+```{r}
+cardio <- read_csv("Data/cpr_survival_tbl_df.csv")
+head(cardio)
+str(cardio)
+tbl <- cardio %>%
+  tbl_summary(
+    by = group,                       
+    statistic = all_categorical() ~ "{n} ({p}%)"
+  ) %>%
+  add_p() %>%
+  bold_labels()
+tbl
+
+tbl_cardio <- tbl %>%
+  as_tibble(col_labels = TRUE) %>%
+  as.data.frame()
+tbl_cardio <- paste(capture.output(print(tbl_cardio, row.names = FALSE)), collapse = "\n")
+
+cat(tbl_cardio)
+```
+
+Interpretation of the table with Chatgpt
+```{r}
+library(openai)
+Sys.setenv(OPENAI_API_KEY = "your_api_key_here") # Replace with your OpenAI API key
+
+res <- openai::create_chat_completion(
+  model = "gpt-4o",
+  messages = list(
+    list(role = "system", content = "Ты медицинский статистик."),
+    list(role = "user",   content = paste(
+      "Интерпретируй таблицу gtsummary (значимые различия, клинический смысл):\n\n", tbl_cardio
+    ))
+  ),
+  temperature = 0.2
+)
+
+out <- res$choices[["message.content"]][1]
+cat(out, sep = "\n")
+
+```
+```{r}
+
+```
+
+
+
+This chunk is a function that interprets any input table in Chatgpt
+columns = names of the columns to be analyzed
+formality = how formal is the answer, 0 very formal to 2 very informal
+```{r}
+interpret_table <- function(table_input = opt[1:10,1:10],
+                            context = "For a research paper", language = "en",
+                            verbosity = "moderate", instructions = "",
+                            varriabes_for_stats = NA,
+                            model = "gpt-4o", formality = 0.2, ai_key = "Evgeny") {
+  if (ai_key == "Evgeny") {
+    ai_key <- readLines("ai_key.gitignore") #this should be in gitignore
+  }
+  Sys.setenv(OPENAI_API_KEY = ai_key)
+  #reading the table
+  tbl <- table_input
+  #making a short table that includes variables for interpretation
+  tbl_full <- tbl
+  if (is.na(varriabes_for_stats)) {
+    varriabes_for_stats <- colnames(table_input)
+  } else{
+    #let us check if any of the variables_for_stats are not in the table colnames
+    if (!all(varriabes_for_stats %in% colnames(table_input))) {
+      stop("Some of the variables_for_stats are not in the table colnames")
+    }
+  }
+  tbl_short
+  
+  varriabes_for_stats
+
+  tbl_formatted <- paste(capture.output(print(tbl, row.names = FALSE)), collapse = "\n")
+
+  #make up a message to chatgpt from the user
+  user_message = paste0("This is the context output should suit: ",context,
+                       "; The vervosity of your answer should be: ", verbosity,
+                       "; Here are specal instructions (if any): ", instructions,
+                       "; Please make the answer in the following language: ", language)
+  
+  res <- openai::create_chat_completion(
+    model = model,
+    messages = list(
+      list(role = "system", content = "You are a medical statistician"),#gives the model role
+      list(role = "user",   content = paste(
+        "Please interpret the gtsummary table (significant differences):\n\n", tbl_formatted, 
+        "\n\n regarding the follwoing columns: ",
+        user_message
+      ))
+    ),
+    temperature = formality
+  )
+
+  out <- res$choices[["message.content"]][1]
+  return(out)
+}
+```
+
 
