@@ -15,15 +15,10 @@ interpret_table <- function(file_path,
   Sys.setenv(OPENAI_API_KEY = ai_key)  
   
   # Чтение данных
-  cardio <- read_csv(file_path)
-  
-  # Проверка наличия колонки 'group'
-  if(!"group" %in% names(cardio)) {
-    stop("В данных отсутствует колонка 'group', необходимая для группировки")
-  }
+  fl <- read_csv(file_path)
   
   # Создание таблицы
-  tbl <- cardio %>%
+  tbl <- fl %>%
     tbl_summary(
       by = group,                       
       statistic = all_categorical() ~ "{n} ({p}%)"
@@ -66,7 +61,7 @@ interpret_table <- function(file_path,
   )
   
   out <- res$choices[["message.content"]][1]
-
+  
   
   # Создание Word-документа
   tbl_ft <- as_flex_table(tbl) %>%
@@ -90,7 +85,7 @@ interpret_table <- function(file_path,
 # Пример использования
 interpret_table(
   file_path = "cpr_survival_tbl_df.csv",
-  output_file = "analysis3_report.docx",
+  output_file = "analysis4_report.docx",
   context = "данные, содержащий информацию из исследования, изучающего влияние препаратов, разжижающих кровь, на показатели выживаемости пациентов с искусственным дыханием. В ходе исследования 90 пациентов были случайным образом распределены либо на прием препаратов, разжижающих кровь (группа лечения), либо на отказ от их приема (контрольная группа), результатом чего была выживаемость не менее 24 часов.",
   ai_key = "..."
 )
