@@ -17,7 +17,7 @@ dataset1 <- opt
 class(dataset1)
 dataset1 %>%
   as_tibble() %>%
-  tbl_summary(include = c(Age, Black, White, "V5..S7"))
+  tbl_summary(include = c(Group, Age, Black, White))
 
 ```
 
@@ -74,36 +74,56 @@ This chunk is a function that interprets any input table in Chatgpt
 columns = names of the columns to be analyzed
 formality = how formal is the answer, 0 very formal to 2 very informal
 ```{r}
-interpret_table <- function(table_input = opt[1:10,1:10],
+interpret_table <- function(table_input = opt[1:10,1:10], by,
                             context = "For a research paper", language = "en",
                             verbosity = "moderate", instructions = "",
-                            varriabes_for_stats = NA,
+                            varriabes_for_stats = c(),
                             model = "gpt-4o", formality = 0.2, ai_key = "Evgeny") {
   if (ai_key == "Evgeny") {
-    ai_key <- readLines("ai_key.gitignore") #this should be in gitignore
+    ai_key <- readLines("ai_key.txt") #this should be in gitignore
   }
   Sys.setenv(OPENAI_API_KEY = ai_key)
-  #reading the table
-  tbl <- table_input
-  #making a short table that includes variables for interpretation
-  tbl_full <- tbl
-  if (is.na(varriabes_for_stats)) {
+#  Check if the table_input is a data frame or tibble
+  if (!is.data.frame(table_input) && !is_tibble(table_input)) {
+    stop("table_input must be a data frame or tibble.")
+  }
+# Check if the variables for stats are in the table_input
+  if (length(varriabes_for_stats) == 1) {
     varriabes_for_stats <- colnames(table_input)
   } else{
     #let us check if any of the variables_for_stats are not in the table colnames
     if (!all(varriabes_for_stats %in% colnames(table_input))) {
-      stop("Some of the variables_for_stats are not in the table colnames")
+      variables_absent <- paste(varriabes_for_stats[!varriabes_for_stats %in% colnames(table_input)])
+      warning(paste0("Some of the variables_for_stats are not in the table colnames. Here are the ones missing: ",variables_absent))
+      varriabes_for_stats <- varriabes_for_stats[varriabes_for_stats %in% colnames(table_input)]
     }
   }
-  tbl_short
+  # Check if the 'by' variable is in the table_input
+  if (!by %in% colnames(table_input)) {
+    stop(paste("The 'by' variable", by, "is not in the table_input."))
+  }
   
-  varriabes_for_stats
+  #making tbl__summary table
+  tbl <- table_input %>%
+  tbl_summary(
+    by = by,                       
+    include = varriabes_for_stats
+  ) %>%
+  add_p() %>%
+  bold_labels()
+print(tbl)
 
-  tbl_formatted <- paste(capture.output(print(tbl, row.names = FALSE)), collapse = "\n")
+tbl_text <- tbl %>%
+  as_tibble(col_labels = TRUE) %>%
+  as.data.frame()
+tbl_text <- paste(capture.output(print(tbl_text, row.names = FALSE)), collapse = "\n")
 
+
+  
   #make up a message to chatgpt from the user
   user_message = paste0("This is the context output should suit: ",context,
                        "; The vervosity of your answer should be: ", verbosity,
+                       "; The variables for which I need interpretation are: ", paste(varriabes_for_stats, collapse = ", "),
                        "; Here are specal instructions (if any): ", instructions,
                        "; Please make the answer in the following language: ", language)
   
@@ -112,7 +132,7 @@ interpret_table <- function(table_input = opt[1:10,1:10],
     messages = list(
       list(role = "system", content = "You are a medical statistician"),#gives the model role
       list(role = "user",   content = paste(
-        "Please interpret the gtsummary table (significant differences):\n\n", tbl_formatted, 
+        "Please interpret the gtsummary table (significant differences):\n\n", tbl_text, 
         "\n\n regarding the follwoing columns: ",
         user_message
       ))
