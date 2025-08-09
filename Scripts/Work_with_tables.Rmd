@@ -24,7 +24,7 @@ We analyze three datasets and pre-register the following hypotheses:
    Hypothesis: The drug reduces the mean number of epileptic seizures vs. control over four follow-ups (sum of y1–y4), adjusting for baseline ('base').
    
 # Load required packages for data manipulation and summary tables
-```{r setup, include=FALSE}
+```
 library("gtsummary") # For creating publication-ready summary tables
 library("tidyverse")
 library("medicaldata")
@@ -34,10 +34,13 @@ library(openai) #For sending prompts to the OpenAI and receiving responses from 
 ```
 # Load the bladder cancer dataset from a CSV file into a data frame called 'cancer'
 # The file "bladdercancer.csv" should be in the current working directory
+```
 cancer <- readr::read_csv("bladdercancer.csv")
-
+```
 # Display the first 6 rows of the dataset to quickly inspect its structure and contents
+```
 head(cancer)
+```
 
 # -------------------------------
 # Variables under study:
@@ -46,12 +49,15 @@ head(cancer)
 # -------------------------------
 
 # Ensure the grouping variable is categorical (factor)
+```
 cancer$tumorsize <- as.factor(cancer$tumorsize)
+```
 
 # Build a univariate gtsummary table:
 # - Compare the distribution of 'number' across tumor size groups
 # - Show mean ± SD for continuous variables
 # - Add a p-value for between-group difference (auto-selects an appropriate test)
+```
 tbl <- cancer %>%
   select(number, tumorsize) %>%                 # keep only the analyzed + rouping variables
   tbl_summary(
@@ -61,8 +67,10 @@ tbl <- cancer %>%
   ) %>%
   add_p() %>%                                   # add p-value for the group comparison
   bold_labels()                                 # bold variable labels
-  
+```
+
 # Convert the gtsummary table to plain text (better for sending to GPT or logs)
+```
 tbl_cancer <- tbl %>%
   as_tibble(col_labels = TRUE) %>%
   as.data.frame()
@@ -71,13 +79,18 @@ tbl_cancer <- paste(
   capture.output(print(tbl_cancer, row.names = FALSE)),
   collapse = "\n"
 )
+```
 
 # Output the text version to the console
+```
 cat(tbl_cancer)
+```
 
 # Load the CPR survival dataset from CSV into a data frame called 'cardio'
 # The file "cpr_survival_tbl_df.csv" should be in the working directory
+```
 cardio <- readr::read_csv("cpr_survival_tbl_df.csv")
+```
 
 # -------------------------------
 # Variables under study:
@@ -89,6 +102,7 @@ cardio <- readr::read_csv("cpr_survival_tbl_df.csv")
 # - Grouped by treatment group ("group")
 # - Show counts and percentages for categorical variables
 # - Add p-values to compare groups
+```
 tbl <- cardio %>%
   tbl_summary(
     by = group,                                    # group comparisons by treatment arm
@@ -96,11 +110,15 @@ tbl <- cardio %>%
   ) %>%
   add_p() %>%                                      # calculate p-values for group differences
   bold_labels()                                    # format variable labels in bold
+```
 
 # Display the summary table in the RStudio viewer
+```
 tbl
+```
 
 # Convert the gtsummary table to a plain-text string (e.g., for GPT interpretation)
+```
 tbl_cardio <- tbl %>%
   as_tibble(col_labels = TRUE) %>%  # preserve labels in tibble format
   as.data.frame()                   # convert to standard data frame
@@ -109,15 +127,22 @@ tbl_cardio <- paste(
   capture.output(print(tbl_cardio, row.names = FALSE)),  # capture table output as text
   collapse = "\n"                                        # combine into one string
 )
+```
 
 # Output the text version to the console
+```
 cat(tbl_cardio)
+```
 
 # Load the epilepsy RCT dataset from CSV
+```
 neuro <- readr::read_csv("epilepsy_RCT_tbl_df.csv")
+```
 
 # Preview the first few rows
+```
 head(neuro)
+```
 
 # -------------------------------
 # Variables under study:
@@ -129,11 +154,14 @@ head(neuro)
 # -------------------------------
 
 # Convert treatment assignment to a factor for correct group comparisons
+```
 neuro <- neuro %>% mutate(treat = factor(treat))
+```
 
 # Descriptive summary table
 # Create a gtsummary table of baseline seizure count (base), follow-ups (y1–y4), and age
 # Group by treatment arm ("progabide = treatment" vs "control")
+```
 tbl_neuro <- neuro %>%
   select(treat, base, y1, y2, y3, y4, age) %>%
   tbl_summary(
@@ -144,22 +172,31 @@ tbl_neuro <- neuro %>%
   ) %>%
   add_p() %>%        # add p-values for between-group differences
   bold_labels()      # format variable labels in bold
+```
 
 # Display descriptive table
+```
 tbl_neuro
+```
 
 # Helper function: convert gtsummary table to plain text
 # Useful for sending the table to GPT or saving in logs
+```
 to_plain_text <- function(tbl) {
   x <- tbl %>% as_tibble(col_labels = TRUE) %>% as.data.frame()
   paste(capture.output(print(x, row.names = FALSE)), collapse = "\n")
 }
+```
 
 # Convert the descriptive table to plain text
+```
 txt_neuro <- to_plain_text(tbl_neuro)
+```
 
 # Print plain text versions
+```
 cat(txt_neuro)
+```
 
 Let us read the dataset and visualize it.
 ```{r}
