@@ -48,18 +48,7 @@ cat(gt$text) # plain-text table (useful for LLM prompts)
 gt$vars_used # variables included
 gt$vars_info # "name:class" pairs
 
-# 2) Ask the LLM to interpret a new grouped table built on the fly
-txt <- interpret_table_v2(
-  table_input         = df,
-  by                  = "Species",
-  varriabes_for_stats = names(df),
-  language            = "en",
-  context             = "For a research paper",
-  ai_key              = Sys.getenv("OPENAI_API_KEY")  # or path to a file you keep out of git
-)
-cat(txt)
-
-# 3) Or interpret an existing tbl_summary with a chosen 'style'
+# 2) Or interpret an existing tbl_summary with a chosen 'style'
 tbl_obj <- tbl_summary(df, by = Species)
 txt2 <- interpret_table(
   tbl_summary_in = tbl_obj,
