@@ -48,18 +48,7 @@ cat(gt$text) # plain-text table (useful for LLM prompts)
 gt$vars_used # variables included
 gt$vars_info # "name:class" pairs
 
-# 2) Ask the LLM to interpret a new grouped table built on the fly
-txt <- interpret_table_v2(
-  table_input         = df,
-  by                  = "Species",
-  varriabes_for_stats = names(df),
-  language            = "en",
-  context             = "For a research paper",
-  ai_key              = Sys.getenv("OPENAI_API_KEY")  # or path to a file you keep out of git
-)
-cat(txt)
-
-# 3) Or interpret an existing tbl_summary with a chosen 'style'
+# 2) Or interpret an existing tbl_summary with a chosen 'style'
 tbl_obj <- tbl_summary(df, by = Species)
 txt2 <- interpret_table(
   tbl_summary_in = tbl_obj,
@@ -107,39 +96,6 @@ list(
 
 * If `include` omits `by`, `gts_build()` automatically adds it.
 * Character/logical `by` is coerced to factor.
-
----
-
-### `interpret_table_v2(table_input, by, context = "For a research paper", language = "en", verbosity = "moderate", instructions = "", varriabes_for_stats = c(), model = "gpt-4o", formality = 0.2, ai_key = "Evgeny")`
-
-**What it does**
-
-* Builds a `tbl_summary()` from **an in-memory data frame** (`table_input`) grouped by `by`, limited to `varriabes_for_stats` (or all columns when length==1).
-* Adds p-values and bold labels.
-* Converts the table to plain text.
-* Calls the OpenAI API to **draft an interpretation** tailored by `context`, `language`, and `verbosity`.
-
-**API key**
-
-* If `ai_key == "Evgeny"`, the function reads a local `"ai_key.txt"` (keep this **out of git**, e.g., via `.gitignore`).
-* Otherwise set `ai_key = Sys.getenv("OPENAI_API_KEY")` or pass the key directly.
-
-**Returns**
-
-* A character string with the generated interpretation.
-
-**Minimal example**
-
-```r
-txt <- interpret_table_v2(
-  table_input         = iris,
-  by                  = "Species",
-  varriabes_for_stats = names(iris),
-  language            = "en",
-  context             = "For a research paper",
-  ai_key              = Sys.getenv("OPENAI_API_KEY")
-)
-```
 
 ---
 
@@ -210,7 +166,3 @@ ai_key.txt
 Issues and PRs are welcome! Please include a minimal reproducible example and session info when reporting bugs.
 
 ---
-
-## License
-
-MIT (c) 2025. Add `LICENSE` to the repo if you plan to distribute.
