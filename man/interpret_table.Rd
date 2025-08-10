@@ -2,74 +2,54 @@
 % Please edit documentation in R/service.R
 \name{interpret_table}
 \alias{interpret_table}
-\title{Interpret a summary table and generate a Word report}
+\title{Interpret a gtsummary table using an LLM (e.g., GPT model)}
 \usage{
 interpret_table(
-  file_path,
-  output_file,
-  context = "For a research paper",
+  tbl_summary_in,
+  style = c("publication", "clin_report", "report", "popular"),
   language = "en",
+  sure = TRUE,
   verbosity = "moderate",
   instructions = "",
-  varriabes_for_stats = NA,
+  varriabes_for_stats = c(),
+  verbose_function_mode = FALSE,
   model = "gpt-4o",
   formality = 0.2,
-  ai_key
+  ai_key = "Evgeny"
 )
 }
 \arguments{
-\item{file_path}{Character scalar. Path to the input CSV file.}
+\item{tbl_summary_in}{A gtsummary table or list-like object to be interpreted.}
 
-\item{output_file}{Character scalar. Path to the output Word file
-(should end with `.docx`).}
+\item{style}{Character. Output style, one of `"publication"`, `"clin_report"`, `"report"`, `"popular"`.}
 
-\item{context}{Character scalar. High-level context for the LLM prompt
-(e.g., "For a research paper").}
+\item{language}{Character. Language for the LLM response. Default is `"en"`.}
 
-\item{language}{Character scalar. Output language code or name (e.g., "en").}
+\item{sure}{Logical. If `TRUE`, the LLM should answer confidently; otherwise, cautiously.}
 
-\item{verbosity}{Character scalar. Desired verbosity of the LLM response.}
+\item{verbosity}{Character. Controls the verbosity of the LLM's output.}
 
-\item{instructions}{Character scalar. Any special instructions to pass through.}
+\item{instructions}{Character. Additional instructions for the LLM.}
 
-\item{varriabes_for_stats}{Character vector of variable names to keep in the
-short table, or `NA` to keep all variables (note the original parameter
-spelling is preserved).}
+\item{varriabes_for_stats}{Character vector. Variables to focus on for statistical analysis.}
 
-\item{model}{Character scalar. Model name for `openai::create_chat_completion()`.}
+\item{verbose_function_mode}{Logical. If `TRUE`, prints debugging information.}
 
-\item{formality}{Numeric scalar in \[0, 1\]. Passed to `temperature`.}
+\item{model}{Character. The LLM model to use (e.g., `"gpt-4o"`).}
 
-\item{ai_key}{Character scalar. OpenAI API key.}
+\item{formality}{Numeric (0–1). Controls creativity/formality in the LLM output.}
+
+\item{ai_key}{Character. Either the OpenAI API key or a file path containing the key.}
 }
 \value{
-Character scalar: the generated interpretation text.
+A character string containing the interpretation from the LLM.
 }
 \description{
-Reads a CSV file, builds a grouped descriptive table with
-`gtsummary::tbl_summary()`, optionally narrows the table to a set of
-variables, asks an LLM to draft an interpretation, and saves a .docx
-report containing the table and the generated narrative.
-}
-\details{
-The input CSV is expected to contain a column named `group`, which is
-used for the `by = group` argument in `gtsummary::tbl_summary()`.
-This function assumes required packages are installed and accessible.
+This function takes a gtsummary table, formats it into text, and sends it to an OpenAI model
+for interpretation based on the specified style, language, verbosity, and other parameters.
 }
 \examples{
 \dontrun{
-out <- interpret_table(
-  file_path = "data/example.csv",
-  output_file = "report.docx",
-  context = "For a research paper",
-  language = "en",
-  verbosity = "moderate",
-  instructions = "",
-  varriabes_for_stats = NA,
-  model = "gpt-4o",
-  formality = 0.2,
-  ai_key = Sys.getenv("OPENAI_API_KEY")
-)
+interpret_table(my_tbl, style = "publication", language = "en", ai_key = "my_api_key")
 }
-
 }

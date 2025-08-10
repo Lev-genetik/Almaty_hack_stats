@@ -21,19 +21,29 @@ knitr::opts_chunk$set(comment = "")
 Reading the input data
 ```{r}
 dataset1 <- medicaldata::strep_tb
+#dataset2 <- medicaldata::opt
 ```
 
 Creating a statistics summary table
-```{r}
+```{r, message=FALSE}
 data_tbl <- gts_build(data = dataset1, by = "arm", 
                       include = c("baseline_condition", "improved", "gender", "radiologic_6m", "strep_resistance"))
+#data_tbl <- gts_build(data = dataset2, by = "Group", 
+#                      include = c("Age", "Black", "White"))
 
 ```
+
+Here is the summary table of the dataset:
+```{r, out.width="50%", fig.align="center"}
+knitr::include_graphics("table.png")
+
+```
+
 Analyzing the summary table using LLM
 ```{r, results='asis'}
 stats_interpreted_ai <- interpret_table(tbl_summary_in = data_tbl[[1]],
-                   style = "clin_report", sure = F, language = "en",
-                   verbosity = "moderate", instructions = "Make a text output",
+                   style = "publication", sure = F, language = "en",
+                   verbosity = "moderate", instructions = "",
                    model = "gpt-4o", formality = 0.2, ai_key = "ai_key.txt")
 
 cat(stats_interpreted_ai)
