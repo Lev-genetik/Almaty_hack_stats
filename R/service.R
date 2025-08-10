@@ -1,185 +1,122 @@
-#' Interpret a summary table and generate a Word report
-#'
-#' Reads a CSV file, builds a grouped descriptive table with
-#' `gtsummary::tbl_summary()`, optionally narrows the table to a set of
-#' variables, asks an LLM to draft an interpretation, and saves a .docx
-#' report containing the table and the generated narrative.
-#'
-#' @param file_path Character scalar. Path to the input CSV file.
-#' @param output_file Character scalar. Path to the output Word file
-#'   (should end with `.docx`).
-#' @param context Character scalar. High-level context for the LLM prompt
-#'   (e.g., "For a research paper").
-#' @param language Character scalar. Output language code or name (e.g., "en").
-#' @param verbosity Character scalar. Desired verbosity of the LLM response.
-#' @param instructions Character scalar. Any special instructions to pass through.
-#' @param varriabes_for_stats Character vector of variable names to keep in the
-#'   short table, or `NA` to keep all variables (note the original parameter
-#'   spelling is preserved).
-#' @param model Character scalar. Model name for `openai::create_chat_completion()`.
-#' @param formality Numeric scalar in \[0, 1\]. Passed to `temperature`.
-#' @param ai_key Character scalar. OpenAI API key.
-#'
-#' @return Character scalar: the generated interpretation text.
-#'
-#' @details
-#' The input CSV is expected to contain a column named `group`, which is
-#' used for the `by = group` argument in `gtsummary::tbl_summary()`.
-#' This function assumes required packages are installed and accessible.
-#'
-#' @examples
-#' \dontrun{
-#' out <- interpret_table(
-#'   file_path = "data/example.csv",
-#'   output_file = "report.docx",
-#'   context = "For a research paper",
-#'   language = "en",
-#'   verbosity = "moderate",
-#'   instructions = "",
-#'   varriabes_for_stats = NA,
-#'   model = "gpt-4o",
-#'   formality = 0.2,
-#'   ai_key = Sys.getenv("OPENAI_API_KEY")
-#' )
-#' }
-#'
-#' @importFrom readr read_csv
-#' @importFrom gtsummary tbl_summary add_p bold_labels as_flex_table
-#' @importFrom dplyr select all_of
-#' @importFrom tibble as_tibble
-#' @importFrom flextable fontsize autofit
-#' @importFrom openai create_chat_completion
-#' @importFrom assertthat assert_that
-#' @export
-interpret_table <- function(file_path,
-                            output_file,
-                            context = "For a research paper", language = "en",
-                            verbosity = "moderate", instructions = "",
-                            varriabes_for_stats = NA,
-                            model = "gpt-4o", formality = 0.2, ai_key) {
+gts_build <- function(data,
+                      by = NULL,              # имя группирующей переменной (строка) или NULL
+                      include = NULL,         # вектор имён столбцов для анализа; NULL = все
+                      stat_cont = "{mean} ± {sd}",
+                      stat_cat  = "{n} ({p}%)",
+                      digits_cont = 1,
+                      missing_policy = "no",
+                      add_p = TRUE,
+                      bold  = TRUE) {
+  stopifnot(is.data.frame(data))
+  df <- data
 
-  ## ---- Input checks (do not alter downstream code) -------------------------
-  # Basic type/length checks
-  assertthat::assert_that(is.character(file_path), length(file_path) == 1,
-                          nchar(file_path) > 0,
-                          msg = "`file_path` must be a non-empty character scalar.")
-  assertthat::assert_that(file.exists(file_path),
-                          msg = "Input `file_path` does not exist.")
-  assertthat::assert_that(is.character(output_file), length(output_file) == 1,
-                          nchar(output_file) > 0,
-                          msg = "`output_file` must be a non-empty character scalar.")
-  assertthat::assert_that(grepl("\\.docx$", output_file, ignore.case = TRUE),
-                          msg = "`output_file` should end with '.docx'.")
-  assertthat::assert_that(is.character(context), length(context) == 1)
-  assertthat::assert_that(is.character(language), length(language) == 1)
-  assertthat::assert_that(is.character(verbosity), length(verbosity) == 1)
-  assertthat::assert_that(is.character(instructions), length(instructions) == 1)
-  assertthat::assert_that(is.numeric(formality), length(formality) == 1,
-                          !is.na(formality), formality >= 0, formality <= 1,
-                          msg = "`formality` must be numeric in [0, 1].")
-  assertthat::assert_that(is.character(model), length(model) == 1,
-                          nchar(model) > 0, msg = "`model` must be a non-empty string.")
-  assertthat::assert_that(!missing(ai_key), is.character(ai_key),
-                          length(ai_key) == 1, nchar(ai_key) > 0,
-                          msg = "`ai_key` must be provided as a non-empty string.")
-
-  # Package availability (quiet check to avoid altering code below)
-  .pkgs_needed <- c("readr", "gtsummary", "dplyr", "tibble", "flextable", "officer", "openai")
-  .missing <- .pkgs_needed[!vapply(.pkgs_needed, requireNamespace, logical(1), quietly = TRUE)]
-  assertthat::assert_that(length(.missing) == 0,
-                          msg = paste0("Missing required packages: ", paste(.missing, collapse = ", ")))
-
-  ## ---- Auth setup -----------------------------------------------------------
-  Sys.setenv(OPENAI_API_KEY = ai_key)
-
-  ## ---- Read data ------------------------------------------------------------
-  # Чтение данных
-  fl <- read_csv(file_path)
-
-  # Ensure the 'group' column exists for tbl_summary(by = group)
-  assertthat::assert_that("group" %in% names(fl),
-                          msg = "Input data must contain a 'group' column for `tbl_summary(by = group)`.")
-
-  ## ---- Build gtsummary table ------------------------------------------------
-  # Создание таблицы
-  tbl <- fl %>%
-    tbl_summary(
-      by = group,
-      statistic = all_categorical() ~ "{n} ({p}%)"
-    ) %>%
-    add_p() %>%
-    bold_labels()
-  tbl
-
-  ## ---- Optional short table selection --------------------------------------
-  # making a short table that includes variables for interpretation
-  tbl_full <- tbl
-
-  # If a subset is requested, it should be a character vector of names
-  if (!is.na(varriabes_for_stats)) {
-    assertthat::assert_that(is.character(varriabes_for_stats),
-                            msg = "`varriabes_for_stats` must be a character vector of variable names or NA.")
-    tbl_short <- tbl_full %>%
-      select(all_of(varriabes_for_stats))
-  } else {
-    tbl_short <- tbl_full
+  # 1) Сузим набор колонок при необходимости
+  if (!is.null(include)) {
+    miss <- setdiff(include, names(df))
+    if (length(miss)) stop("Not in data: ", paste(miss, collapse = ", "))
+    df <- df[, include, drop = FALSE]
   }
-  tbl_short
 
-  ## ---- Convert table to text for LLM ---------------------------------------
-  tbl_formatted <- tbl %>%
-    as_tibble(col_labels = TRUE) %>%
-    as.data.frame()
-  tbl_formatted <- paste(capture.output(print(tbl_formatted, row.names = FALSE)), collapse = "\n")
+  # 2) Жёсткая обработка by
+  if (!is.null(by)) {
+    if (!by %in% names(data)) {
+      stop(sprintf("Grouping variable '%s' not found in original data.", by))
+    }
+    # если include задан и в нём НЕТ by — добавим его и пересузим df
+    if (!is.null(include) && !by %in% names(df)) {
+      include <- c(by, include)
+      df <- data[, include, drop = FALSE]
+    }
+    # приведение by к factor, если это char/logical
+    if ((is.character(df[[by]]) || is.logical(df[[by]])) && !is.factor(df[[by]])) {
+      df[[by]] <- as.factor(df[[by]])
+    }
+  }
 
-  ## ---- Compose user message -------------------------------------------------
-  # make up a message to chatgpt from the user
-  user_message = paste0("This is the context output should suit: ",context,
-                        "; The vervosity of your answer should be: ", verbosity,
-                        "; Here are specal instructions (if any): ", instructions,
-                        "; Please make the answer in the following language: ", language)
+  # 3) Форматы статистик
+  cont_fmt <- gtsummary::all_continuous()  ~ stat_cont
+  cat_fmt  <- gtsummary::all_categorical() ~ stat_cat
 
-  ## ---- Call LLM -------------------------------------------------------------
-  res <- openai::create_chat_completion(
-    model = model,
-    messages = list(
-      list(role = "system", content = "You are a biomedical statistician"),#gives the model role
-      list(role = "user",   content = paste(
-        "You write academic conclusions for peer-reviewed biomedical journals. Interpret the gtsummary table (significant differences, clinical meaning):\n\n", tbl_formatted, "\n\n",
-        user_message
-      ))
-    ),
-    temperature = formality
+  # 4) Сборка таблицы
+  if (!is.null(by)) {
+    call_tbl <- substitute(
+      gtsummary::tbl_summary(
+        data = DF,
+        by   = BY,
+        statistic = list(CONT, CAT),
+        digits    = gtsummary::all_continuous() ~ DIG,
+        missing   = MISS
+      ),
+      list(
+        DF   = df,
+        BY   = as.name(by),
+        CONT = cont_fmt,
+        CAT  = cat_fmt,
+        DIG  = digits_cont,
+        MISS = missing_policy
+      )
+    )
+    tbl <- eval(call_tbl)
+  } else {
+    tbl <- gtsummary::tbl_summary(
+      data = df,
+      statistic = list(cont_fmt, cat_fmt),
+      digits    = gtsummary::all_continuous() ~ digits_cont,
+      missing   = missing_policy
+    )
+  }
+
+  if (isTRUE(add_p)) tbl <- gtsummary::add_p(tbl)
+  if (isTRUE(bold))  tbl <- gtsummary::bold_labels(tbl)
+
+  # 5) Plain-text версия
+  tmp <- gtsummary::as_tibble(tbl, col_labels = TRUE)
+  tmp <- as.data.frame(tmp)
+  tbl_text <- paste(capture.output(print(tmp, row.names = FALSE)), collapse = "\n")
+
+  # 6) Метаданные
+  vars_used <- names(df)
+  vars_info <- paste0(vars_used, ":", vapply(df, function(x) class(x)[1], ""), collapse = ", ")
+
+  list(
+    tbl       = tbl,        # объект gtsummary
+    text      = tbl_text,   # plain-text таблицы
+    vars_used = vars_used,  # имена задействованных переменных
+    vars_info = vars_info,  # имя:класс через запятую
+    by        = by          # имя группирующей переменной (или NULL)
   )
-
-  out <- res$choices[["message.content"]][1]
-
-  ## ---- Build Word document --------------------------------------------------
-  # Создание Word-документа
-  tbl_ft <- as_flex_table(tbl) %>%
-    fontsize(size = 10, part = "all") %>%
-    autofit()
-
-  doc <- read_docx() %>%
-    body_add_par("Statistical Report", style = "heading 1") %>%
-    body_add_par(paste("Generated:", Sys.Date()), style = "Normal") %>%
-    body_add_flextable(tbl_ft) %>%
-    body_add_par("Interpretation:", style = "heading 2") %>%
-    body_add_par(out, style = "Normal")
-
-  ## ---- Save document --------------------------------------------------------
-  # Сохранение документа
-  print(doc, target = output_file)
-  message("Document '", output_file, "' successfully created!")
-
-  ## ---- Return ---------------------------------------------------------------
-  return(out)
 }
 
+#example:
+
+#cancer <- readr::read_csv("bladdercancer.csv", show_col_types = FALSE) |>
+#  dplyr::mutate(tumorsize = as.factor(tumorsize))
+
+#gt <- gts_build(
+#  data    = cancer,
+#  by      = "tumorsize",
+#  include = c("number", "tumorsize")
+#)
+
+#gt$tbl
+#cat(gt$text)
+
+#gt$vars_used
+#gt$vars_info
+
+#Функция gts_build() будет полностью отвечать за статистическую таблицу и метаданные (имена и типы колонок, имя группирующей переменной).
+
+#принимает data, by (группирующую переменную) и include (какие колонки анализировать);
+
+#строит gtsummary::tbl_summary;
+
+#возвращает саму таблицу tbl,plain-text версию text (для GPT),список задействованных переменных vars_used, строку с краткими описаниями типов vars_info (имя:класс) — удобно вставлять в промпт GPT, имя группирующей переменной by.
+
+#В GPT-чанк берем gt$text, gt$vars_used, gt$vars_info, gt$by — и вставляем в промпт.
 
 
 
-
+#################################################################################
 #' Interpret a gtsummary table and return an LLM-written narrative
 #'
 #' Builds a grouped descriptive table from an in-memory data frame or tibble
@@ -230,89 +167,93 @@ interpret_table <- function(file_path,
 #' @importFrom utils capture.output
 #' @importFrom magrittr %>%
 #' @export
-interpret_table_v2 <- function(table_input = opt[1:10,1:10], by,
-                               context = "For a research paper", language = "en",
+#' Comments for the user
+#' style:
+#' publication = For a research paper
+#' clin_report = For a clinical report
+#' report = Activity report style
+#' popular = For a popular science article
+
+
+
+interpret_table <- function(tbl_summary_in,
+                               style = c("publication","clin_report","report","popular"),
+                               language = "en",sure = T,
                                verbosity = "moderate", instructions = "",
-                               varriabes_for_stats = c(),
+                               varriabes_for_stats = c(),verbose_function_mode = F,
                                model = "gpt-4o", formality = 0.2, ai_key = "Evgeny") {
 
   ## ---- Input checks (do not alter existing logic) ---------------------------
   # Basic type/length checks
-  assertthat::assert_that(is.character(by), length(by) == 1, nchar(by) > 0,
-                          msg = "`by` must be a non-empty character scalar naming a column in `table_input`.")
-  assertthat::assert_that(is.character(context), length(context) == 1)
   assertthat::assert_that(is.character(language), length(language) == 1)
   assertthat::assert_that(is.character(verbosity), length(verbosity) == 1)
   assertthat::assert_that(is.character(instructions), length(instructions) == 1)
-  assertthat::assert_that(is.character(model), length(model) == 1, nchar(model) > 0)
+  assertthat::assert_that(is.character(style), length(model) == 1, nchar(model) > 0)
   assertthat::assert_that(is.numeric(formality), length(formality) == 1,
-                          !is.na(formality), formality >= 0, formality <= 1,
+                          !is.na(formality), formality >= 0, formality <= 2,
                           msg = "`formality` must be numeric in [0, 1].")
   assertthat::assert_that(is.character(ai_key), length(ai_key) == 1)
 
   ## ---- API key handling -----------------------------------------------------
-  if (ai_key == "Evgeny") {
-    ai_key <- readLines("ai_key.txt") #this should be in gitignore
+  if (is_file_or_key(ai_key) == "file") {
+    # If ai_key is a file, read the key from it
+    ai_key <- readLines(ai_key)
+  } else if (is_file_or_key(ai_key) == "chatgpt_key") {
+    # If ai_key is a key, use it directly
+    ai_key <- ai_key
+  } else if (is_file_or_key(ai_key) == "unknown") {
+    stop("Invalid OpenAI API key or file path provided.")
   }
+
   assertthat::assert_that(is.character(ai_key), length(ai_key) >= 1, nchar(ai_key[1]) > 0,
                           msg = "OpenAI API key could not be read or is empty.")
   Sys.setenv(OPENAI_API_KEY = ai_key)
 
-  ## ---- Table type checks (original checks preserved) ------------------------
-  #  Check if the table_input is a data frame or tibble
-  if (!is.data.frame(table_input) && !is_tibble(table_input)) {
-    stop("table_input must be a data frame or tibble.")
+
+
+  ## ---- Define the style ------------------------------------------------
+  style <- match.arg(style, c("publication", "clin_report", "report", "popular"))
+  if (style == "publication") {
+    context <- "For a research paper"
+  } else if (style == "clin_report") {
+    context <- "For a clinical report"
+  } else if (style == "report") {
+    context <- "For an activity report"
+  } else if (style == "popular") {
+    context <- "For a popular science article"
   }
-
-  ## ---- Variable selection checks -------------------------------------------
-  # Check if the variables for stats are in the table_input
-  if (length(varriabes_for_stats) == 1) {
-    varriabes_for_stats <- colnames(table_input)
-  } else{
-    #let us check if any of the variables_for_stats are not in the table colnames
-    if (!all(varriabes_for_stats %in% colnames(table_input))) {
-      variables_absent <- paste(varriabes_for_stats[!varriabes_for_stats %in% colnames(table_input)])
-      warning(paste0("Some of the variables_for_stats are not in the table colnames. Here are the ones missing: ",variables_absent))
-      varriabes_for_stats <- varriabes_for_stats[varriabes_for_stats %in% colnames(table_input)]
-    }
-  }
-
-  ## ---- 'by' column existence check (original preserved) --------------------
-  # Check if the 'by' variable is in the table_input
-  if (!by %in% colnames(table_input)) {
-    stop(paste("The 'by' variable", by, "is not in the table_input."))
-  }
-
-  ## ---- Build gtsummary table -----------------------------------------------
-  #making tbl__summary table
-  tbl <- table_input %>%
-    tbl_summary(
-      by = by,
-      include = varriabes_for_stats
-    ) %>%
-    add_p() %>%
-    bold_labels()
-  #print(tbl)
-
   ## ---- Convert table to text for LLM ---------------------------------------
-  tbl_text <- tbl %>%
+  tbl_text <- tbl_summary_in %>%
     as_tibble(col_labels = TRUE) %>%
     as.data.frame()
   tbl_text <- paste(capture.output(print(tbl_text, row.names = FALSE)), collapse = "\n")
 
+  ## ---- Adding sure or unsure mode ------------------------------------------
+  if (sure) {
+    sure_mode <- "Always say in a self-confident manner what you think about the data. NEVER use words like presumably (IMPORTANT)"
+  } else {
+    sure_mode <- "Be careful and do not make any assumptions about the data. If you are not sure, say so"
+  }
   ## ---- Compose the prompt ---------------------------------------------------
   #make up a message to chatgpt from the user
-  user_message = paste0("This is the context output should suit: ",context,
+  user_message = paste0("Output shall not include any preface from you, jusr description of the data. This is the context output should suit: ",context,
                         "; The vervosity of your answer should be: ", verbosity,
-                        "; The variables for which I need interpretation are: ", paste(varriabes_for_stats, collapse = ", "),
+                        "; ", sure_mode,
                         "; Here are specal instructions (if any): ", instructions,
                         "; Please make the answer in the following language: ", language)
+if (verbose_function_mode) {
+  print("now the user message")
+  print(user_message)
+  print("#table text")
+  print(tbl_text)
+}
+
 
   ## ---- Call the LLM ---------------------------------------------------------
   res <- openai::create_chat_completion(
     model = model,
     messages = list(
-      list(role = "system", content = "You are a medical statistician"),#gives the model role
+      list(role = "system", content = "You are a medical statistician."),#gives the model role
       list(role = "user",   content = paste(
         "Please interpret the gtsummary table (significant differences):\n\n", tbl_text,
         "\n\n regarding the follwoing columns: ",
@@ -323,6 +264,7 @@ interpret_table_v2 <- function(table_input = opt[1:10,1:10], by,
   )
 
   #out <- res$choices[["message.content"]][1]
+  #return(res)
   return(res$choices[["message.content"]])
 }
 

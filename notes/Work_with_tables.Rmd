@@ -1,7 +1,7 @@
 ---
-title: "Work_with_table.Rmd"
-author: "Lev"
-date: "2025-08-08"
+title: "Analysis of Streptomycin Efficacy in the Treatment of Tuberculosis"
+author: "Laizy stat"
+date: "2025-08-10"
 output: html_document
 ---
 
@@ -10,25 +10,35 @@ library("gtsummary")
 library("tidyverse")
 library("medicaldata")
 library("openai")
+library("rlang")
+library("dplyr")
+library("readr")
 
 devtools::load_all()
-
+knitr::opts_chunk$set(comment = "")
 ```
 
-# Results
-
-bla-bla-bla 
-
+Reading the input data
 ```{r}
+dataset1 <- medicaldata::strep_tb
+```
 
-df_test <- medicaldata::opt
-
-tmp <- interpret_table_v2(table_input = df_test, by = "Group",
-                   context = "For a research paper", language = "en",
-                   verbosity = "moderate", instructions = "",
-                   varriabes_for_stats = c("Age", "Black"),
-                   model = "gpt-4o", formality = 0.2, ai_key = "Evgeny")
-
-cat(tmp)
+Creating a statistics summary table
+```{r}
+data_tbl <- gts_build(data = dataset1, by = "arm", 
+                      include = c("baseline_condition", "improved", "gender", "radiologic_6m", "strep_resistance"))
 
 ```
+Analyzing the summary table using LLM
+```{r, results='asis'}
+stats_interpreted_ai <- interpret_table(tbl_summary_in = data_tbl[[1]],
+                   style = "clin_report", sure = F, language = "en",
+                   verbosity = "moderate", instructions = "Make a text output",
+                   model = "gpt-4o", formality = 0.2, ai_key = "ai_key.txt")
+
+cat(stats_interpreted_ai)
+
+```
+
+
+
