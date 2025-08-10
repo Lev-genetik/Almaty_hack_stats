@@ -1,17 +1,35 @@
 Package: laizy.stats
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Analyze stats data and create a discription for it in a text format.
 Version: 0.1.0
 Authors@R: c(
     person(
-      "Jane", "Doe",
-      email = "jane@example.com",
+      "Evgeny", "Bakin",
+      email = "eugene.bakin@gmail.com",
+      role = c("aut", "cre")
+    ),
+    person(
+      "Lev", "Shagam",
+      email = "levshagam@gmail.com",
+      role = c("aut", "cre")
+    ),
+    person(
+      "Diliara", "Sharipova",
+      email = "shr.diliara@gmail.com",
+      role = c("aut", "cre")
+    ),
+    person(
+      "Maria", "Tretiakova",
+      email = "Masha.tret.2006@gmail.ru",
       role = c("aut", "cre")
     )
   )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+Description: 
+    This package can analyze stats data and create a discription for it in a text format by 
+    creating statistical summary for the data using the R package gtsummary description of the results 
+    and its interpretation usable for research papers of clinical trial description. 
+    The description should take into consideration medical/biological contextMore about what it does (maybe more than one line).
+License: BSD-3
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.2
