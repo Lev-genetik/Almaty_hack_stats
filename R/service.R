@@ -121,7 +121,8 @@ gts_build <- function(data,
   # 5) Plain-text version
   tmp <- gtsummary::as_tibble(tbl, col_labels = TRUE)
   tmp <- as.data.frame(tmp)
-  tbl_text <- paste(capture.output(print(tmp, row.names = FALSE)), collapse = "\n")
+  #tbl_text <- paste(capture.output(print(tmp, row.names = FALSE)), collapse = "\n")
+  tbl_text <- paste(capture.output(write.table(tmp, sep = ",", row.names = FALSE)), collapse = "\n")
 
   # Save table as image # ADDED
   gt::gtsave(
@@ -139,7 +140,7 @@ gts_build <- function(data,
 
   list(
     tbl       = tbl,
-    text      = tbl_text,
+    tbl_text  = tbl_text,
     vars_used = vars_used,
     vars_info = vars_info,
     by        = by,
@@ -239,11 +240,16 @@ interpret_table <- function(tbl_summary_in,
   }
 
   ## ---- Convert table to text for LLM ----------------------------------------
-  tbl_text <- tbl_summary_in %>%
-    as_tibble(col_labels = TRUE) %>%
-    as.data.frame()
-  tbl_text <- paste(capture.output(print(tbl_text, row.names = FALSE)), collapse = "\n")
+  # tbl_text <- tbl_summary_in %>%
+  #   as_tibble(col_labels = TRUE) %>%
+  #   as.data.frame()
+  # tbl_text <- paste(capture.output(print(tbl_text, row.names = FALSE)), collapse = "\n")
 
+  # text_tbl <- tbl_summary_in$tbl %>%
+  #   as_tibble() %>%    # converts gtsummary object to a tibble of data
+  #   kable()
+
+  text_tbl <- tbl_summary_in$tbl_text
   ## ---- Adding sure or unsure mode -------------------------------------------
   if (sure) {
     sure_mode <- "Always say in a self-confident manner what you think about the data. NEVER use words like presumably (IMPORTANT)"

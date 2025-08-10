@@ -38,9 +38,10 @@ knitr::include_graphics("table.png")
 
 Analyzing the summary table using LLM
 ```{r, results='asis'}
-stats_interpreted_ai <- interpret_table(tbl_summary_in = data_tbl[[1]],
+stats_interpreted_ai <- interpret_table(tbl_summary_in = data_tbl,
                    style = "publication", sure = F, language = "en",
                    verbosity = "moderate", instructions = "",
+                   verbose_function_mode = T,
                    model = "gpt-4o", formality = 0.2, ai_key = "ai_key.txt")
 
 cat(stats_interpreted_ai)
