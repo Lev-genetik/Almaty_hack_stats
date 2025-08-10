@@ -4,24 +4,24 @@ Title: Analyze stats data and create a discription for it in a text format.
 Version: 0.1.0
 Authors@R: c(
     person(
-      "Evgeny", "Bakin",
-      email = "eugene.bakin@gmail.com",
-      role = c("aut", "cre")
-    ),
-    person(
       "Lev", "Shagam",
       email = "levshagam@gmail.com",
-      role = c("aut", "cre")
+      role = "cre"
+    ),
+    person(
+      "Evgeny", "Bakin",
+      email = "eugene.bakin@gmail.com",
+      role = "aut"
     ),
     person(
       "Diliara", "Sharipova",
       email = "shr.diliara@gmail.com",
-      role = c("aut", "cre")
+      role = "aut"
     ),
     person(
       "Maria", "Tretiakova",
       email = "Masha.tret.2006@gmail.ru",
-      role = c("aut", "cre")
+      role = "aut"
     )
   )
 Description: 
