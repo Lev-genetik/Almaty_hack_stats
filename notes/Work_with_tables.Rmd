@@ -21,15 +21,12 @@ knitr::opts_chunk$set(comment = "")
 Reading the input data
 ```{r}
 dataset1 <- medicaldata::strep_tb
-#dataset2 <- medicaldata::opt
 ```
 
 Creating a statistics summary table
 ```{r, message=FALSE}
 data_tbl <- gts_build(data = dataset1, by = "arm", 
                       include = c("baseline_condition", "improved", "gender", "radiologic_6m", "strep_resistance"))
-#data_tbl <- gts_build(data = dataset2, by = "Group", 
-#                      include = c("Age", "Black", "White"))
 
 ```
 
