@@ -30,7 +30,12 @@
 #' The image is saved to a fixed file name (`table.png`) in the working directory by default.
 #' You can modify the `gt::gtsave()` call inside the function if you want custom file names or formats.
 #'
+#' @importFrom gtsummary tbl_summary add_p bold_labels all_continuous all_categorical as_tibble as_gt
+#' @importFrom gt gtsave
+#' @importFrom tibble as_tibble
+#' @importFrom utils capture.output
 #' @importFrom assertthat assert_that
+#' @export
 gts_build <- function(data,
                       by = NULL,              # name of grouping variable (string) or NULL
                       include = NULL,         # vector of column names for analysis; NULL = all
@@ -165,6 +170,11 @@ gts_build <- function(data,
 #' \dontrun{
 #' interpret_table(my_tbl, style = "publication", language = "en", ai_key = "my_api_key")
 #' }
+#' @importFrom assertthat assert_that
+#' @importFrom gtsummary as_tibble
+#' @importFrom tibble as_tibble
+#' @importFrom utils capture.output
+#' @importFrom openai create_chat_completion
 #' @export
 interpret_table <- function(tbl_summary_in,
                             style = c("publication", "clin_report", "report", "popular"),
