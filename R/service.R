@@ -121,7 +121,8 @@ gts_build <- function(data,
   # 5) Plain-text version
   tmp <- gtsummary::as_tibble(tbl, col_labels = TRUE)
   tmp <- as.data.frame(tmp)
-  tbl_text <- paste(capture.output(print(tmp, row.names = FALSE)), collapse = "\n")
+  #tbl_text <- paste(capture.output(print(tmp, row.names = FALSE)), collapse = "\n")
+  tbl_text <-paste(capture.output(write.table(tmp, row.names = FALSE)), collapse = "\n")
 
   # Save table as image # ADDED
   gt::gtsave(
@@ -136,6 +137,7 @@ gts_build <- function(data,
   # 6) Metadata
   vars_used <- names(df)
   vars_info <- paste0(vars_used, ":", vapply(df, function(x) class(x)[1], ""), collapse = ", ")
+
 
   list(
     tbl       = tbl,
@@ -239,10 +241,11 @@ interpret_table <- function(tbl_summary_in,
   }
 
   ## ---- Convert table to text for LLM ----------------------------------------
-  tbl_text <- tbl_summary_in %>%
-    as_tibble(col_labels = TRUE) %>%
-    as.data.frame()
-  tbl_text <- paste(capture.output(print(tbl_text, row.names = FALSE)), collapse = "\n")
+  # tbl_text <- tbl_summary_in %>%
+  #   as_tibble(col_labels = TRUE) %>%
+  #   as.data.frame()
+  # tbl_text <- paste(capture.output(print(tbl_text, row.names = FALSE)), collapse = "\n")
+  tbl_text <- tbl_summary_in$text
 
   ## ---- Adding sure or unsure mode -------------------------------------------
   if (sure) {
